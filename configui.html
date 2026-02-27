@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 0 10px 20px 10px; }
+    h2 { font-size: 23px; text-align: center; }
+    .section { margin-bottom: 26px; }
+    .row { display: flex; flex-wrap: wrap; gap: 2px 2px; align-items: center; margin-bottom: 6px; }
+    label { font-size: 15px; min-width: 120px; }
+    input[type="text"], input[type="number"], select { font-size: 15px; padding: 6px 8px; border-radius: 4px; border: 1px solid #ccc; }
+    .param-list, .disp-list { margin-bottom: 10px; }
+    .btn { background: #31b87b; color: white; border: none; border-radius: 5px; padding: 7px 13px; cursor: pointer; font-size: 15px; }
+    .btn:active { background: #279c69; }
+    .btn-small { font-size: 12px; padding: 2px 7px; margin-left: 4px; }
+    .flex { display: flex; gap: 6px; align-items: center; }
+    .confirm { color: #31b87b; margin-top: 12px; font-weight: bold; font-size: 15px;}
+    .divider { border-top: 1px solid #eee; margin: 15px 0 12px 0; }
+    .checkbox-label { font-size: 13px; margin-right: 0px; margin-left: 0px;}
+    .icon-btn { background: none; border: none; cursor: pointer; font-size: 17px; margin: 0 1px; }
+    .icon-btn:active { color: #31b87b; }
+    .remove-btn { color: #b00; }
+    .move-btn { color: #555; }
+    .move-btn[disabled] { color: #ccc; cursor: not-allowed; }
+    .row:hover .icon-btn { opacity: 1; }
+    .icon-btn { display: inline-block; }
+    .label-input { width: 130px; }
+    .loading { text-align:center; color:#31b87b; font-size:18px; margin:14px 0; }
+    .import-export-row { display: flex; justify-content: flex-end; align-items: center; gap: 15px; margin-bottom: 18px; }
+    .import-input { display:none; }
+    .success-message { color:#31b87b; font-size:13px; margin-left:10px;}
+    .inline-config { display: flex; gap: 12px; align-items: center; margin-bottom: 9px;}
+    .inline-config label { min-width: unset; font-size: 14px; }
+    .inline-config input { width: 80px;}
+    .import-success { color: #31b87b; font-size: 15px; text-align: center; margin-bottom: 8px;}
+    .import-error { color: #e00; font-size: 15px; text-align: center; margin-bottom: 8px;}
+    @media (max-width:900px) {
+      .label-input { width: 90px; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Webapp Configuration</h2>
+  <div id="importExportRow" class="import-export-row" style="display:none;">
+    <button class="btn btn-small" onclick="exportConfig()">Export</button>
+    <button class="btn btn-small" onclick="document.getElementById('importInput').click()">Import</button>
+    <input type="file" id="importInput" class="import-input" accept=".json" />
+    <span id="importExportMsg" class="success-message"></span>
+  </div>
+  <div id="importStatus"></div>
+  <div id="loadingcfg" class="loading">🔄 Loading configuration...</div>
+  <div id="maincfg" style="display:none">
+    <div class="section">
+      <label>Webpage Title:</label>
+      <input type="text" id="pageTitle" style="width:180px;">
+    </div>
+    <div class="section">
+      <label>Favicon URL:</label>
+      <input type="text" id="favicon" style="width:300px;">
+    </div>
+    <div class="section">
+      <label>Webapp URL:</label>
+      <input type="text" id="webappUrl" style="width:300px;">
+      <span style="font-size:12px;color:#555;">(for Share button in the webapp)</span>
+    </div>
+    <div class="section">
+      <label>Sheet Name:</label>
+      <select id="sheetName"></select>
+    </div>
+    <div class="inline-config">
+      <label for="maxPerPage">Max results per page:</label>
+      <input type="number" min="1" id="maxPerPage" value="10">
+      <label for="minChars">Min search chars:</label>
+      <input type="number" min="1" id="minChars" value="2">
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div style="font-weight:bold;">Search Parameters:</div>
+      <div id="params" class="param-list"></div>
+      <button class="btn" onclick="addParam()">Add new parameter</button>
+    </div>
+    <div class="section">
+      <div style="font-weight:bold;">Display Values:</div>
+      <div id="disps" class="disp-list"></div>
+      <button class="btn" onclick="addDisp()">Add new display value</button>
+    </div>
+    <div class="section flex">
+      <input type="checkbox" id="showMultiple" style="width:18px;height:18px;margin:0;"><label class="checkbox-label" for="showMultiple">Show multiple search result?</label>
+    </div>
+    <div class="divider"></div>
+    <div class="section flex" style="gap:13px;">
+      <button class="btn" onclick="saveConfig(false)">Save</button>
+      <button class="btn" onclick="saveConfig(true)">Save and Close</button>
+      <span id="confirmMsg" class="confirm"></span>
+    </div>
+  </div>
+  <script>
+    let columns = [];
+    let paramFields = [];
+    let dispFields = [];
+    let sheetNames = [];
+    let config = {};
+
+    function genId(prefix) { return prefix + Math.random().toString(36).substr(2,7); }
+
+    function showMain() {
+      document.getElementById('maincfg').style.display = '';
+      document.getElementById('loadingcfg').style.display = 'none';
+      document.getElementById('importExportRow').style.display = '';
+    }
+
+    function loadInitial(importMessage, importIsSuccess) {
+      google.script.run.withSuccessHandler(function(names) {
+        sheetNames = names;
+        const sel = document.getElementById('sheetName');
+        sel.innerHTML = '<option value="">-- Select Sheet --</option>' +
+          names.map(n => `<option value="${n}">${n}</option>`).join('');
+        google.script.run.withSuccessHandler(function(cfg) {
+          config = cfg;
+          document.getElementById('pageTitle').value = cfg.pageTitle || 'Datasheet Search';
+          document.getElementById('favicon').value = cfg.favicon || 'https://i.ibb.co.com/7dP6tWSm/favicon.png';
+          document.getElementById('webappUrl').value = cfg.webappUrl || '';
+          document.getElementById('maxPerPage').value = cfg.maxPerPage || 10;
+          document.getElementById('minChars').value = cfg.minChars || 2;
+          if (cfg.sheetName) sel.value = cfg.sheetName;
+          document.getElementById('showMultiple').checked = (cfg.showMultiple !== false);
+          if (cfg.sheetName) {
+            loadColumns(cfg.sheetName, function() {
+              (cfg.searchParams||[]).forEach(addParamFromConfig);
+              (cfg.displayValues||[]).forEach(addDispFromConfig);
+              showMain();
+              showImportMessage(importMessage, importIsSuccess);
+            });
+          } else {
+            showMain();
+            showImportMessage(importMessage, importIsSuccess);
+          }
+        }).getConfig();
+      }).getSheetNames();
+    }
+
+    document.getElementById('sheetName').addEventListener('change', function(e) {
+      document.getElementById('loadingcfg').style.display = '';
+      document.getElementById('maincfg').style.display = 'none';
+      document.getElementById('importExportRow').style.display = 'none';
+      loadColumns(e.target.value, function() {
+        paramFields = [];
+        dispFields = [];
+        document.getElementById('params').innerHTML = '';
+        document.getElementById('disps').innerHTML = '';
+        document.getElementById('maincfg').style.display = '';
+        document.getElementById('loadingcfg').style.display = 'none';
+        showMain();
+      });
+    });
+
+    function loadColumns(sheet, cb) {
+      google.script.run.withSuccessHandler(function(cols) {
+        columns = cols;
+        if (cb) cb();
+      }).getColumnNames(sheet);
+    }
+
+    function renderParams() {
+      const el = document.getElementById('params');
+      el.innerHTML = '';
+      paramFields.forEach((field, idx) => {
+        el.appendChild(makeParamRow(field, idx));
+      });
+    }
+    function makeParamRow(field, idx) {
+      let div = document.createElement('div');
+      div.className = "row";
+      let labelInput = document.createElement('input');
+      labelInput.type = "text";
+      labelInput.placeholder = "Label";
+      labelInput.className = "label-input";
+      labelInput.value = field.label || columns.find(c=>c.index===field.colIndex)?.name || "";
+      labelInput.oninput = function() { field.label = labelInput.value; };
+      div.appendChild(labelInput);
+
+      let sel = document.createElement('select');
+      sel.style.width = "142px";
+      columns.forEach(col => {
+        let opt = document.createElement('option');
+        opt.value = col.index;
+        opt.textContent = col.name;
+        sel.appendChild(opt);
+      });
+      sel.value = field.colIndex;
+      sel.onchange = function(){ field.colIndex = Number(sel.value); };
+      div.appendChild(sel);
+
+      let chkOpt = document.createElement('input');
+      chkOpt.type = "checkbox";
+      chkOpt.checked = !!field.optional;
+      chkOpt.onchange = function(){ field.optional = chkOpt.checked; };
+      div.appendChild(chkOpt);
+      let lblOpt = document.createElement('label');
+      lblOpt.textContent = "Optional";
+      lblOpt.className = "checkbox-label";
+      div.appendChild(lblOpt);
+
+      let chkExc = document.createElement('input');
+      chkExc.type = "checkbox";
+      chkExc.checked = !!field.exactMatch;
+      chkExc.onchange = function(){ field.exactMatch = chkExc.checked; };
+      div.appendChild(chkExc);
+      let lblExc = document.createElement('label');
+      lblExc.textContent = "Exact";
+      lblExc.className = "checkbox-label";
+      div.appendChild(lblExc);
+
+      let chkDrop = document.createElement('input');
+      chkDrop.type = "checkbox";
+      chkDrop.checked = !!field.dropdown;
+      chkDrop.onchange = function(){ field.dropdown = chkDrop.checked; };
+      div.appendChild(chkDrop);
+      let lblDrop = document.createElement('label');
+      lblDrop.textContent = "Dropdown";
+      lblDrop.className = "checkbox-label";
+      div.appendChild(lblDrop);
+
+      let btnUp = document.createElement('button');
+      btnUp.type = "button";
+      btnUp.className = "icon-btn move-btn";
+      btnUp.innerHTML = "↑";
+      btnUp.disabled = (idx === 0);
+      btnUp.onclick = function() {
+        if (idx > 0) {
+          [paramFields[idx-1], paramFields[idx]] = [paramFields[idx], paramFields[idx-1]];
+          renderParams();
+        }
+      };
+      div.appendChild(btnUp);
+
+      let btnDn = document.createElement('button');
+      btnDn.type = "button";
+      btnDn.className = "icon-btn move-btn";
+      btnDn.innerHTML = "↓";
+      btnDn.disabled = (idx === paramFields.length-1);
+      btnDn.onclick = function() {
+        if (idx < paramFields.length-1) {
+          [paramFields[idx+1], paramFields[idx]] = [paramFields[idx], paramFields[idx+1]];
+          renderParams();
+        }
+      };
+      div.appendChild(btnDn);
+
+      let btnDel = document.createElement('button');
+      btnDel.type = "button";
+      btnDel.className = "icon-btn remove-btn";
+      btnDel.innerHTML = "✕";
+      btnDel.onclick = function() {
+        paramFields.splice(idx,1); renderParams();
+      };
+      div.appendChild(btnDel);
+
+      return div;
+    }
+
+    function addParam() {
+      let used = paramFields.map(f=>f.colIndex);
+      let availableCols = columns.filter(col => !used.includes(col.index));
+      if (!availableCols.length) return;
+      let obj = {
+        id: genId('p_'),
+        colIndex: availableCols[0].index,
+        label: columns.find(c=>c.index===availableCols[0].index)?.name || "",
+        optional: false,
+        exactMatch: false,
+        dropdown: false
+      };
+      paramFields.push(obj);
+      renderParams();
+    }
+    function addParamFromConfig(cfg) {
+      if (!columns.find(c => c.index === cfg.colIndex)) return;
+      paramFields.push(Object.assign({id:genId('p_')},cfg));
+      renderParams();
+    }
+
+    function renderDisps() {
+      const el = document.getElementById('disps');
+      el.innerHTML = '';
+      dispFields.forEach((field, idx) => {
+        el.appendChild(makeDispRow(field, idx));
+      });
+    }
+    function makeDispRow(field, idx) {
+      let div = document.createElement('div');
+      div.className = "row";
+      let labelInput = document.createElement('input');
+      labelInput.type = "text";
+      labelInput.placeholder = "Label";
+      labelInput.className = "label-input";
+      labelInput.value = field.label || columns.find(c=>c.index===field.colIndex)?.name || "";
+      labelInput.oninput = function() { field.label = labelInput.value; };
+      div.appendChild(labelInput);
+
+      let sel = document.createElement('select');
+      sel.style.width = "142px";
+      columns.forEach(col => {
+        let opt = document.createElement('option');
+        opt.value = col.index;
+        opt.textContent = col.name;
+        sel.appendChild(opt);
+      });
+      sel.value = field.colIndex;
+      sel.onchange = function(){ field.colIndex = Number(sel.value); };
+      div.appendChild(sel);
+
+      let chkImg = document.createElement('input');
+      chkImg.type = "checkbox";
+      chkImg.checked = !!field.image;
+      chkImg.onchange = function(){ field.image = chkImg.checked; };
+      div.appendChild(chkImg);
+      let lblImg = document.createElement('label');
+      lblImg.textContent = "Image";
+      lblImg.className = "checkbox-label";
+      div.appendChild(lblImg);
+
+      let btnUp = document.createElement('button');
+      btnUp.type = "button";
+      btnUp.className = "icon-btn move-btn";
+      btnUp.innerHTML = "↑";
+      btnUp.disabled = (idx === 0);
+      btnUp.onclick = function() {
+        if (idx > 0) {
+          [dispFields[idx-1], dispFields[idx]] = [dispFields[idx], dispFields[idx-1]];
+          renderDisps();
+        }
+      };
+      div.appendChild(btnUp);
+
+      let btnDn = document.createElement('button');
+      btnDn.type = "button";
+      btnDn.className = "icon-btn move-btn";
+      btnDn.innerHTML = "↓";
+      btnDn.disabled = (idx === dispFields.length-1);
+      btnDn.onclick = function() {
+        if (idx < dispFields.length-1) {
+          [dispFields[idx+1], dispFields[idx]] = [dispFields[idx], dispFields[idx+1]];
+          renderDisps();
+        }
+      };
+      div.appendChild(btnDn);
+
+      let btnDel = document.createElement('button');
+      btnDel.type = "button";
+      btnDel.className = "icon-btn remove-btn";
+      btnDel.innerHTML = "✕";
+      btnDel.onclick = function() {
+        dispFields.splice(idx,1); renderDisps();
+      };
+      div.appendChild(btnDel);
+
+      return div;
+    }
+
+    function addDisp() {
+      let used = dispFields.map(f=>f.colIndex);
+      let availableCols = columns.filter(col => !used.includes(col.index));
+      if (!availableCols.length) return;
+      let obj = {
+        id: genId('d_'),
+        colIndex: availableCols[0].index,
+        label: columns.find(c=>c.index===availableCols[0].index)?.name || "",
+        image: false
+      };
+      dispFields.push(obj);
+      renderDisps();
+    }
+    function addDispFromConfig(cfg) {
+      if (!columns.find(c => c.index === cfg.colIndex)) return;
+      dispFields.push(Object.assign({id:genId('d_')},cfg));
+      renderDisps();
+    }
+
+    function saveConfig(close) {
+      let sheetName = document.getElementById('sheetName').value;
+      let pageTitle = document.getElementById('pageTitle').value || "Datasheet Search";
+      let favicon = document.getElementById('favicon').value || "https://i.ibb.co.com/7dP6tWSm/favicon.png";
+      let webappUrl = document.getElementById('webappUrl').value || "";
+      let showMultiple = !!document.getElementById('showMultiple').checked;
+      let maxPerPage = Number(document.getElementById('maxPerPage').value) || 10;
+      let minChars = Number(document.getElementById('minChars').value) || 2;
+
+      let configObj = {
+        pageTitle: pageTitle,
+        favicon: favicon,
+        webappUrl: webappUrl,
+        sheetName: sheetName,
+        searchParams: paramFields.map(f => ({
+          id: f.id,
+          colIndex: f.colIndex,
+          label: f.label,
+          optional: !!f.optional,
+          exactMatch: !!f.exactMatch,
+          dropdown: !!f.dropdown
+        })),
+        displayValues: dispFields.map(f => ({
+          id: f.id,
+          colIndex: f.colIndex,
+          label: f.label,
+          image: !!f.image
+        })),
+        showMultiple: showMultiple,
+        maxPerPage: maxPerPage,
+        minChars: minChars
+      };
+      google.script.run.withSuccessHandler(function(){
+        let msg = document.getElementById('confirmMsg');
+        msg.textContent = "Saved successfully";
+        setTimeout(()=>{msg.textContent="";}, close?800:2000);
+        if (close) google.script.host.close();
+      }).saveConfig(configObj);
+    }
+
+    // Export config as JSON file
+    function exportConfig() {
+      const configObj = {
+        pageTitle: document.getElementById('pageTitle').value || "Datasheet Search",
+        favicon: document.getElementById('favicon').value || "https://i.ibb.co.com/7dP6tWSm/favicon.png",
+        webappUrl: document.getElementById('webappUrl').value || "",
+        sheetName: document.getElementById('sheetName').value,
+        searchParams: paramFields,
+        displayValues: dispFields,
+        showMultiple: !!document.getElementById('showMultiple').checked,
+        maxPerPage: Number(document.getElementById('maxPerPage').value) || 10,
+        minChars: Number(document.getElementById('minChars').value) || 2
+      };
+      const blob = new Blob([JSON.stringify(configObj,null,2)], {type: "application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "webapp_config.json";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);}, 200);
+      showImportExportMsg("Config exported!");
+    }
+
+    // Import config from JSON file
+    document.getElementById('importInput').addEventListener('change', function(e){
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        let text = evt.target.result;
+        google.script.run.withSuccessHandler(function(res){
+          if (res.success) {
+            loadInitial("Imported successfully!", true);
+          } else {
+            loadInitial("Import failed: "+res.error, false);
+          }
+        }).setConfigFromJSON(text);
+      };
+      reader.readAsText(file);
+    });
+
+    function showImportMessage(msg, isSuccess) {
+      const el = document.getElementById('importStatus');
+      if (!msg) { el.innerHTML = ""; return; }
+      el.innerHTML = `<div class="${isSuccess ? "import-success":"import-error"}">${msg}</div>`;
+      setTimeout(()=>{el.innerHTML="";}, 3500);
+    }
+
+    loadInitial();
+  </script>
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: 'Segoe UI',sans-serif; background: #f7f7f9; margin:0; min-height:100vh; }
+    .container { max-width:700px; margin:35px auto 20px auto; background:#fff; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.09); padding:25px; position:relative;}
+    .center-logo { display: flex; justify-content: center; margin-bottom: 12px; }
+    .center-logo img { width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.09);}
+    h2 { text-align:center; margin-bottom:28px; }
+    .search-form { display:flex; flex-direction:column; gap:18px; }
+    .search-error { color: #b00; font-size: 15px; margin-top: 7px; margin-bottom: 5px; text-align: left; padding-left: 2px; }
+    label { font-size:16px; margin-bottom:3px; }
+    input[type="text"], select { width:100%; padding:9px 10px; font-size:16px; border:1px solid #ccc; border-radius:5px; }
+    input.required-error, select.required-error { border: 2px solid #e00 !important; background: #fff2f2; }
+    button { background:#31b87b; color:#fff; border:none; padding:13px; border-radius:6px; font-size:17px; font-weight:500; margin-top:10px; transition:background 0.18s; cursor:pointer; }
+    button:disabled { background:#ccc; cursor:not-allowed; }
+    .loader { text-align:center; color:#31b87b; font-size:18px; margin:14px 0; }
+    .results { margin-top:27px; }
+    .card { background:#fafbfc; border:1px solid #eee; border-radius:8px; padding:17px 18px 18px 18px; margin-bottom:17px; box-shadow:0 2px 7px rgba(0,0,0,0.05); position:relative; }
+    .card img { max-width:150px; max-height:110px; border-radius:6px; box-shadow:0 2px 9px rgba(0,0,0,0.07); display:block; margin-bottom:7px;}
+    .img-copy-group { display:flex; gap:7px; align-items:center; margin-bottom:7px; }
+    .copy-img-btn { background:#31b87b; color:#fff; border:none; border-radius:4px; font-size:13px; padding:6px 10px; cursor:pointer;}
+    .copy-img-btn:active { background: #279c69;}
+    .rescount { color:#279c69; font-size:17px; margin-bottom:13px; text-align:center;}
+    .error { color:#b00; font-size:16px; margin-top:16px; text-align:center;}
+    #paramLoading { text-align:center; margin:30px 0 22px 0; }
+    .copy-card-btn { position:absolute; right:12px; bottom:12px; background:none; border:none; cursor:pointer; font-size:18px; color:#888; opacity:0.85; }
+    .copy-card-btn:active { color:#31b87b; }
+    .copy-card-btn:hover { color:#31b87b; opacity:1; }
+    .share-btn { position:absolute; right:18px; top:18px; background:none; border:none; cursor:pointer; font-size:20px; color:#31b87b; opacity:0.85;}
+    .share-btn:active { color:#279c69; }
+    .share-btn:hover { opacity:1; }
+    iframe { margin-top: 10px; width: 100%; height: 400px; border: 1px solid #ccc; border-radius: 8px;}
+    .copy-message { position: absolute; top: 12px; right: 34px; background: #31b87b; color: #fff; padding: 6px 18px; font-size: 14px; border-radius: 6px; opacity: 0.97; z-index: 20; transition: opacity 0.3s;}
+    .pagination { display: flex; justify-content: center; gap: 9px; margin: 17px 0 10px 0; align-items: center;}
+    .pagination button { padding: 7px 13px; font-size: 15px; border-radius: 5px;}
+    .pagination .active-page { font-weight: bold; background: #31b87b; color: #fff;}
+    .pagination .page-btn { background: #f1f1f1; color: #333; border: 1px solid #ccc; }
+    .pagination .page-btn:disabled { background: #e0e0e0; color:#999;}
+    @media (max-width:750px) {
+      .container { max-width:98vw; padding:6vw 1vw 6vw 1vw; }
+    }
+    @media (max-width:650px) {
+      h2 { font-size:19px; }
+      .copy-card-btn { right:6px; bottom:6px; font-size:21px; }
+      .share-btn { right:8px; top:8px; }
+      .copy-message { right: 8px;}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button id="shareBtn" class="share-btn" style="display:none;" title="Copy webapp URL">
+      <svg width="25" height="25" viewBox="0 0 24 24"><path fill="#31b87b" d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.88L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.16C16.5,7.7 17.21,8.08 18,8.08C19.66,8.08 21,6.74 21,5.08C21,3.42 19.66,2.08 18,2.08C16.34,2.08 15,3.42 15,5.08C15,5.32 15.04,5.55 15.09,5.78L8.04,9.92C7.5,9.38 6.79,9 6,9C4.34,9 3,10.34 3,12C3,13.66 4.34,15 6,15C6.79,15 7.5,14.62 8.04,14.08L15.16,18.25C15.11,18.47 15.08,18.73 15.08,19C15.08,20.66 16.42,22 18.08,22C19.74,22 21.08,20.66 21.08,19C21.08,17.34 19.74,16 18.08,16Z"/></svg>
+    </button>
+    <div id="copyMsg" class="copy-message" style="display:none;"></div>
+    <div id="centerLogo" class="center-logo" style="display:none;">
+      <img id="faviconImg" src="" alt="Favicon">
+    </div>
+    <h2 id="pageTitle">Datasheet Search</h2>
+    <form id="searchForm" class="search-form" autocomplete="off" style="display:none;">
+      <div id="searchFields"></div>
+      <button type="submit" id="searchBtn" disabled>Search</button>
+    </form>
+    <div id="searchErr" class="search-error" style="display:none;"></div>
+    <div id="paramLoading">
+      <span class="loader">🔄 Loading search fields...</span>
+    </div>
+    <div id="loader" class="loader" style="display:none;">🔄 Loading...</div>
+    <div id="results" class="results"></div>
+    <div id="pagination"></div>
+  </div>
+  <script>
+    let config, columns = [], fieldDefs = [];
+    let lastResultState = {params:{}, page:1, totalPages:1};
+    let touchedFields = {};
+
+    function showCopyMsg(msg) {
+      const el = document.getElementById("copyMsg");
+      el.textContent = msg;
+      el.style.display = '';
+      setTimeout(()=>{el.style.display='none';}, 1800);
+    }
+
+    function highlightRequiredFields() {
+      let ok = true;
+      let minChars = Number(config.minChars) || 2;
+      fieldDefs.forEach(f => {
+        let inp = document.getElementById("f_" + f.id);
+        let shouldCheck = !f.optional && !f.dropdown && !f.exactMatch;
+        if (shouldCheck && touchedFields[f.id] && (!inp.value || inp.value.length < minChars)) {
+          inp.classList.add("required-error");
+          ok = false;
+        } else if (!f.optional && (!inp.value || inp.value === "")) {
+          // Only highlight if touched
+          if (touchedFields[f.id]) inp.classList.add("required-error");
+          ok = false;
+        } else {
+          inp.classList.remove("required-error");
+        }
+      });
+      return ok;
+    }
+
+    function showSearchError(msg) {
+      const errEl = document.getElementById('searchErr');
+      errEl.textContent = msg;
+      errEl.style.display = '';
+    }
+
+    function hideSearchError() {
+      const errEl = document.getElementById('searchErr');
+      errEl.textContent = "";
+      errEl.style.display = 'none';
+    }
+
+    function getParamsFromFields() {
+      let params = {};
+      fieldDefs.forEach(f=>{
+        params[f.id] = document.getElementById("f_"+f.id)?.value || "";
+      });
+      return params;
+    }
+
+    function minCharsMessage(field) {
+      let minChars = Number(config.minChars) || 2;
+      return `Please enter at least ${minChars} characters for: ${field.label || field.id}`;
+    }
+
+    function init() {
+      google.script.run.withSuccessHandler(function(cfg) {
+        config = cfg;
+        document.title = cfg.pageTitle || "Datasheet Search";
+        document.getElementById('pageTitle').textContent = cfg.pageTitle || "Datasheet Search";
+        document.getElementById('faviconImg').src = cfg.favicon || "https://i.ibb.co.com/7dP6tWSm/favicon.png";
+        document.getElementById('centerLogo').style.display = "flex";
+        if (cfg.webappUrl && cfg.webappUrl.trim() !== "") {
+          document.getElementById("shareBtn").style.display = "";
+        } else {
+          document.getElementById("shareBtn").style.display = "none";
+        }
+        if (!cfg.sheetName) {
+          document.getElementById('searchFields').innerHTML = '<div class="error">Configuration incomplete. Please set up the webapp in the sheet.</div>';
+          document.getElementById("paramLoading").style.display = "none";
+          return;
+        }
+        google.script.run.withSuccessHandler(function(cols) {
+          columns = cols;
+          fieldDefs = (cfg.searchParams||[]).map(p => {
+            let col = columns.find(c => c.index === p.colIndex);
+            return Object.assign({}, p, {label: p.label || (col?col.name:"")});
+          });
+          renderForm();
+        }).getColumnNames(cfg.sheetName);
+      }).getConfig();
+    }
+
+    document.getElementById("shareBtn").onclick = function() {
+      if (config && config.webappUrl && config.webappUrl.trim() !== "") {
+        const temp = document.createElement('input');
+        temp.value = config.webappUrl;
+        document.body.appendChild(temp);
+        temp.select();
+        temp.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+        showCopyMsg("Webapp URL copied!");
+      }
+    };
+
+    function renderForm() {
+      let el = document.getElementById('searchFields');
+      el.innerHTML = "";
+      touchedFields = {};
+      fieldDefs.forEach(field => {
+        let group = document.createElement('div');
+        let label = document.createElement('label');
+        label.textContent = field.label + (field.optional?"":" *");
+        group.appendChild(label);
+
+        if (field.dropdown) {
+          let select = document.createElement('select');
+          select.id = "f_"+field.id;
+          select.disabled = true;
+          select.innerHTML = '<option value="">Loading...</option>';
+          group.appendChild(select);
+          google.script.run.withSuccessHandler(function(vals) {
+            select.disabled = false;
+            select.innerHTML = '<option value="">-- Select --</option>';
+            vals.forEach(v=>{
+              let opt=document.createElement('option');
+              opt.value=opt.textContent=String(v);
+              select.appendChild(opt);
+            });
+            select.classList.remove("required-error");
+          }).getUniqueColumnValues(config.sheetName, field.colIndex);
+          select.onblur = select.oninput = function(){ 
+            touchedFields[field.id] = true;
+            checkRequired(); 
+            highlightRequiredFields(); 
+            if (select.value) select.classList.remove("required-error");
+          };
+        } else {
+          let input = document.createElement('input');
+          input.type = "text";
+          input.id = "f_"+field.id;
+          input.placeholder = field.label;
+          input.onblur = input.oninput = function() {
+            touchedFields[field.id] = true;
+            checkRequired(); 
+            highlightRequiredFields(); 
+            if (input.value) input.classList.remove("required-error");
+          };
+          group.appendChild(input);
+        }
+        el.appendChild(group);
+      });
+      document.getElementById("paramLoading").style.display = "none";
+      document.getElementById("searchForm").style.display = "";
+      hideSearchError();
+      checkRequired();
+    }
+
+    function checkRequired() {
+      let ok = true;
+      let minChars = Number(config.minChars) || 2;
+      let minCharField = null;
+      fieldDefs.forEach(f=>{
+        let id = "f_"+f.id;
+        let v = document.getElementById(id)?.value;
+        let shouldCheck = !f.optional && !f.dropdown && !f.exactMatch;
+        if (!f.optional && (!v || v==="")) ok = false;
+        if (shouldCheck && v && v.length < minChars) {
+          ok = false;
+          minCharField = f;
+        }
+      });
+      document.getElementById('searchBtn').disabled = !ok;
+      if (minCharField && touchedFields[minCharField.id]) {
+        showSearchError(minCharsMessage(minCharField));
+      } else {
+        hideSearchError();
+      }
+      return ok;
+    }
+
+    function handleDisabledSearch(e) {
+      let minChars = Number(config.minChars) || 2;
+      let minCharField = null;
+      let ok = true;
+      fieldDefs.forEach(f => {
+        let inp = document.getElementById("f_" + f.id);
+        let shouldCheck = !f.optional && !f.dropdown && !f.exactMatch;
+        if (shouldCheck && (!inp.value || inp.value.length < minChars)) {
+          inp.classList.add("required-error");
+          touchedFields[f.id] = true;
+          ok = false;
+          if (!minCharField) minCharField = f;
+        } else if (!f.optional && (!inp.value || inp.value === "")) {
+          if (!minCharField) minCharField = f;
+          if (touchedFields[f.id]) inp.classList.add("required-error");
+          ok = false;
+        } else {
+          inp.classList.remove("required-error");
+        }
+      });
+      if (minCharField && !minCharField.optional && !minCharField.dropdown && !minCharField.exactMatch) {
+        showSearchError(minCharsMessage(minCharField));
+      } else {
+        showSearchError("Please fill all required fields.");
+      }
+      e.preventDefault();
+      return false;
+    }
+
+    document.getElementById('searchBtn').addEventListener('click', function(e){
+      if (this.disabled) {
+        handleDisabledSearch(e);
+      }
+    });
+
+    document.getElementById('searchForm').onsubmit = function(e) {
+      if (document.getElementById('searchBtn').disabled) {
+        handleDisabledSearch(e);
+        return false;
+      }
+      e.preventDefault();
+      hideSearchError();
+      lastResultState.page = 1;
+      runSearchAndPaginate(1);
+    };
+
+    document.getElementById('searchForm').addEventListener('keydown', function(e){
+      if (e.key === "Enter") {
+        if (document.getElementById('searchBtn').disabled) {
+          handleDisabledSearch(e);
+        }
+      }
+    });
+
+    function runSearchAndPaginate(page) {
+      document.getElementById('results').innerHTML = "";
+      document.getElementById('pagination').innerHTML = "";
+      document.getElementById('loader').style.display = "";
+      let params = getParamsFromFields();
+      let maxPerPage = Number(config.maxPerPage) || 10;
+      let minChars = Number(config.minChars) || 2;
+      google.script.run.withSuccessHandler(function(result){
+        document.getElementById('loader').style.display = "none";
+        lastResultState = {params: params, page: result.page, totalPages: result.totalPages};
+        renderResults(result);
+        renderPagination(result.page, result.totalPages);
+      }).searchSheet(params, page, maxPerPage, minChars);
+    }
+
+    function renderResults(result) {
+      let el = document.getElementById('results');
+      if (result.error) {
+        el.innerHTML = `<div class="error">${result.error}</div>`;
+        return;
+      }
+      if (!result.results.length) {
+        el.innerHTML = `<div class="error">❌ No results found.</div>`;
+        return;
+      }
+      let dispDefs = config.displayValues || [];
+      let count = result.count;
+      let cards = result.results.map((res,idx)=>{
+        let content = dispDefs.map((dd,dispIdx)=>{
+          let val = res[dd.id];
+          if (!val) return '';
+          if (val.type==='image') {
+            if (val.isDrive) {
+              return `<div class="img-copy-group">
+                <iframe src="${val.embed}" allow="autoplay"></iframe>
+                <button type="button" class="copy-img-btn" onclick="copyImgUrl('${val.value}')">Copy Image URL</button>
+              </div>`;
+            } else {
+              return `<div class="img-copy-group">
+                <img src="${val.embed}" alt="Image" onerror="this.style.display='none'"/>
+                <button type="button" class="copy-img-btn" onclick="copyImgUrl('${val.value}')">Copy Image URL</button>
+              </div>`;
+            }
+          } else {
+            return `<div><b>${dd.label || (columns.find(c=>c.index===dd.colIndex)?.name||'')}:</b> ${val.value}</div>`;
+          }
+        }).filter(Boolean).join("");
+        return `<div class="card" id="card_${idx}">
+          ${content}
+          <button class="copy-card-btn" title="Copy this result" onclick="copyCardToClipboard(${idx})">
+            <svg height="20" width="20" viewBox="0 0 20 20" style="vertical-align:middle;">
+              <path d="M6 2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V6.83a2 2 0 0 0-.59-1.41l-3.83-3.83A2 2 0 0 0 9.17 2H6zm7 15a1 1 0 0 0 1-1V6.83a1 1 0 0 0-.29-.71l-3.83-3.83A1 1 0 0 0 9.17 2H6a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h7zm-4-7h2v2h-2v-2z" fill="#888"/>
+            </svg>
+          </button>
+        </div>`;
+      }).join("");
+      let rescount = config.showMultiple ? `<div class="rescount">${count} result${count>1?"s":""} found</div>` : "";
+      el.innerHTML = rescount + cards;
+    }
+
+    function renderPagination(page, totalPages) {
+      let pagDiv = document.getElementById('pagination');
+      pagDiv.innerHTML = "";
+      totalPages = Number(totalPages);
+      page = Number(page);
+      if (totalPages <= 1) return;
+      let html = `<div class="pagination">`;
+      html += `<button class="page-btn" ${page<=1?'disabled':''} onclick="goToPage(1)">First</button>`;
+      html += `<button class="page-btn" ${page<=1?'disabled':''} onclick="goToPage(${page-1})">&lt;</button>`;
+      let start = Math.max(1, page-2), end = Math.min(totalPages, page+2);
+      for (let i = start; i <= end; ++i) {
+        html += `<button class="page-btn${i===page?' active-page':''}" ${i===page?'disabled':''} onclick="goToPage(${i})">${i}</button>`;
+      }
+      html += `<button class="page-btn" ${page>=totalPages?'disabled':''} onclick="goToPage(${page+1})">&gt;</button>`;
+      html += `<button class="page-btn" ${page>=totalPages?'disabled':''} onclick="goToPage(${totalPages})">Last</button>`;
+      html += `</div>`;
+      pagDiv.innerHTML = html;
+    }
+
+    window.goToPage = function(page) {
+      runSearchAndPaginate(page);
+    };
+
+    window.copyImgUrl = function(url) {
+      let temp = document.createElement('input');
+      temp.value = url;
+      document.body.appendChild(temp);
+      temp.select(); temp.setSelectionRange(0,99999);
+      document.execCommand('copy');
+      document.body.removeChild(temp);
+      showCopyMsg("Image URL copied!");
+    };
+
+    window.copyCardToClipboard = function(idx) {
+      const card = document.getElementById("card_" + idx);
+      if (!card) return;
+      let lines = [];
+      const dispDefs = config.displayValues || [];
+      dispDefs.forEach((dd, i) => {
+        if (dd.image) {
+          const iframe = card.querySelector('iframe');
+          if (iframe && iframe.src) {
+            lines.push(`${dd.label || (columns.find(c=>c.index===dd.colIndex)?.name||'')}: ${iframe.src}`);
+          } else {
+            const img = card.querySelector('img');
+            if (img && img.src) {
+              lines.push(`${dd.label || (columns.find(c=>c.index===dd.colIndex)?.name||'')}: ${img.src}`);
+            }
+          }
+        } else {
+          const b = Array.from(card.querySelectorAll('b'))[i];
+          if (b && b.textContent) {
+            let txt = b.parentNode.textContent.replace(b.textContent, '').trim();
+            let lab = b.textContent.replace(':','').trim();
+            lines.push(`${lab}: ${txt}`);
+          }
+        }
+      });
+      if (lines.length === 0) lines.push(card.textContent.trim());
+      const temp = document.createElement('textarea');
+      temp.value = lines.join("\n");
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      document.body.removeChild(temp);
+      showCopyMsg("Result copied!");
+    };
+
+    window.onload = function() {
+      document.getElementById("searchForm").style.display = "none";
+      document.getElementById("paramLoading").style.display = "";
+      init();
+    };
+  </script>
+</body>
+</html>
