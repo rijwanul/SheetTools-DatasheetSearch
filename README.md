@@ -38,6 +38,15 @@ Everything — config storage, search logic, and the web app itself — runs ent
 
 ---
 
+## Use Cases
+
+- **Event attendee directory** — let attendees search by their email to instantly find their ID, booth number, and seat number, no manual lookups needed
+- **Event registration verification** — give volunteers a search tool to confirm if someone actually registered. Add a **PIN** column as a search parameter so only authorized volunteers can pull up full attendee details
+- **Recruitment portal** — running a hiring drive? Let applicants search for their reference ID and application status using their name or email
+- **Design asset finder** — let your graphic design team search for an employee's profile photo stored on Google Drive — handy when that one colleague isn't replying to messages but their birthday post still needs to go out
+
+---
+
 ## Setup
 
 ### 1. Copy the files into Apps Script
@@ -63,7 +72,7 @@ In the dialog that opens, fill in:
 |---|---|
 | **Webpage Title** | Title shown on the search page |
 | **Favicon URL** | URL to an image used as the browser tab icon |
-| **Webapp URL** | Your deployed Web App URL (enables the share button) |
+| **Webapp URL** | Your deployed Web App URL (enables the share button). Recommended: use a URL shortener (e.g. [bit.ly](https://bit.ly), [tinyurl.com](https://tinyurl.com)) to shorten the long Apps Script URL before pasting here |
 | **Sheet Name** | The sheet tab to search |
 | **Max results per page** | How many results to show per page (default: 10) |
 | **Min search chars** | Minimum characters required in required text fields before searching (default: 2) |
@@ -160,3 +169,9 @@ Make sure the Drive files are shared with "Anyone with the link" for them to dis
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
+
+---
+
+## Acknowledgements
+
+The idea for this tool came during my tenure as **Head of Admin and HR Department** at [Youth School for Social Entrepreneurs (YSSE)](https://www.ysseglobal.org). The recurring need to manage and share structured data easily myself and with team members from different departments inspired the concept. The tool was built with the assistance of AI.
