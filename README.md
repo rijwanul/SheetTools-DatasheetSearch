@@ -174,4 +174,4 @@ This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Acknowledgements
 
-The idea for this tool came during my tenure as **Head of Admin and HR Department** at [Youth School for Social Entrepreneurs (YSSE)](https://www.facebook.com/YSSEGlobal). The recurring need to manage and share structured data easily myself and with team members from different departments inspired the concept. The tool was built with the assistance of AI.
+The idea for this tool came during my tenure at [Youth School for Social Entrepreneurs (YSSE)](https://www.facebook.com/YSSEGlobal). The recurring need to manage and share structured data easily myself and with team members from different departments inspired the concept. The tool was built with the assistance of AI.
