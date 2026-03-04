@@ -1,3 +1,5 @@
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=rijwanul.SheetTools-DatasheetSearch)
+
 # SheetTools — DatasheetSearch
 
 A Google Apps Script tool that adds a fully configurable, user-friendly search web app on top of any Google Sheet — no external server, no database, no coding required after setup.
@@ -174,4 +176,4 @@ This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Acknowledgements
 
-The idea for this tool came during my tenure at [Youth School for Social Entrepreneurs (YSSE)](https://www.facebook.com/YSSEGlobal). The recurring need to manage and share structured data easily myself and with team members from different departments inspired the concept. The tool was built with the assistance of AI.
+The idea for this tool came during my tenure as at [Youth School for Social Entrepreneurs (YSSE)](https://facebook.com/YSSEGlobal). The recurring need to manage and share structured data with non-technical team members and event participants inspired the concept. The tool was built with the assistance of AI.
